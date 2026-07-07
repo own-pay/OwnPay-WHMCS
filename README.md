@@ -1,6 +1,6 @@
-<img width="1774" height="887" alt="1000899224" src="https://github.com/user-attachments/assets/10c134f1-afa5-4999-a94a-8b536c5e0c0a" />
-
 # OwnPay Payment Gateway Module for WHMCS
+<img width="1774" height="887" alt="1000899235" src="https://github.com/user-attachments/assets/f0e55ade-37ed-4d1f-b214-5896cc5b83a7" />
+
 
 A WHMCS payment gateway module that integrates with the [OwnPay](https://ownpay.org) payment platform. Customers are redirected to OwnPay's checkout to complete payment, then returned to WHMCS upon completion.
 
