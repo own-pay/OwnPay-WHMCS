@@ -10,13 +10,11 @@
 $_LANG['ownpay']['config']['base_url']           = 'OwnPay Base URL';
 $_LANG['ownpay']['config']['base_url_desc']      = 'Enter your OwnPay instance URL (e.g. https://pay.example.com). No trailing slash.';
 $_LANG['ownpay']['config']['api_key']            = 'API Key';
-$_LANG['ownpay']['config']['api_key_desc']       = 'Your OwnPay API key (starts with op_). Found in OwnPay Admin > Settings > API Keys.';
+$_LANG['ownpay']['config']['api_key_desc']       = 'Your OwnPay API key (starts with op_). Found in OwnPay Admin > Developer Hub > API Keys.';
 $_LANG['ownpay']['config']['webhook_secret']     = 'Webhook Secret';
-$_LANG['ownpay']['config']['webhook_secret_desc'] = 'HMAC-SHA256 secret used to verify webhook signatures. Found in OwnPay Admin > Settings > Webhooks.';
-$_LANG['ownpay']['config']['webhook_url']        = 'Webhook URL';
-$_LANG['ownpay']['config']['webhook_url_desc']   = 'Copy this URL into your OwnPay webhook configuration. Auto-generated from your WHMCS system URL.';
-$_LANG['ownpay']['config']['gateway_logo_url']   = 'Gateway Logo URL';
-$_LANG['ownpay']['config']['gateway_logo_url_desc'] = 'Optional: URL to a custom logo image displayed on the checkout page. Leave blank for default.';
+$_LANG['ownpay']['config']['webhook_secret_desc'] = 'HMAC-SHA256 secret used to verify webhook signatures. Configure this in OwnPay Admin > Developer Hub > Webhooks.';
+$_LANG['ownpay']['config']['logo_url']           = 'Gateway Logo URL';
+$_LANG['ownpay']['config']['logo_url_desc']      = 'Optional: URL to a custom logo image displayed on the checkout page. Leave blank for default.';
 $_LANG['ownpay']['config']['test_mode']          = 'Test Mode';
 $_LANG['ownpay']['config']['test_mode_desc']     = 'Enable test mode to log API requests and responses for debugging.';
 

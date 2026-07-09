@@ -15,7 +15,7 @@
  * @see https://developers.whmcs.com/payment-gateways/third-party-gateway/
  * @copyright Copyright (c) OwnPay
  * @license https://opensource.org/licenses/MIT MIT License
- * @version 1.2.0
+ * @version 1.0.1
  */
 
 if (!defined("WHMCS")) {
@@ -33,12 +33,6 @@ function ownpay_MetaData(): array
         'APIVersion'                 => '1.1',
         'DisableLocalCreditCardInput' => true,
         'TokenisedStorage'           => false,
-        'description'                => 'Accept payments via OwnPay checkout.',
-        'category'                   => 'Payment Gateway',
-        'author'                     => 'OwnPay',
-        'authorURL'                  => 'https://ownpay.org',
-        'support'                    => 'https://support.ownpay.org',
-        'version'                    => '1.0.0',
     ];
 }
 
@@ -70,6 +64,13 @@ function ownpay_config(): array
             'Default'      => '',
             'Description'  => 'HMAC-SHA256 secret configured on the OwnPay webhook. '
                 . 'Webhook URL: <strong>{your-whmcs-url}/modules/gateways/callback/ownpay.php</strong>',
+        ],
+        'logo_url' => [
+            'FriendlyName' => 'Gateway Logo URL',
+            'Type'         => 'text',
+            'Size'         => '80',
+            'Default'      => '',
+            'Description'  => 'Optional: URL to a custom logo image displayed on the OwnPay checkout page. Leave blank for default.',
         ],
         'test_mode' => [
             'FriendlyName' => 'Test Mode',
@@ -131,13 +132,17 @@ function ownpay_apiRequest(
  */
 function ownpay_parseJson(string $body): array
 {
-    if ($body === '' || !json_validate($body)) {
+    if ($body === '') {
         return [];
     }
 
-    $decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+    $decoded = json_decode($body, true, 512);
 
-    return is_array($decoded) ? $decoded : [];
+    if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+        return [];
+    }
+
+    return $decoded;
 }
 
 /**
@@ -230,6 +235,8 @@ function ownpay_link(array $params): string
 
     $customerName = trim($firstname . ' ' . $lastname);
 
+    $logoUrl = trim((string) ($params['logo_url'] ?? ''));
+
     $payload = [
         'amount'       => $amount,
         'currency'     => $currencyCode,
@@ -240,10 +247,14 @@ function ownpay_link(array $params): string
         'metadata'     => [
             'whmcs_invoice_id' => (string) $invoiceId,
             'whmcs_client_id'  => (string) ($params['clientdetails']['id'] ?? ''),
-            'module_version'   => '1.2.0',
+            'module_version'   => '1.0.0',
             'whmcs_version'    => (string) ($params['whmcsVersion'] ?? 'unknown'),
         ],
     ];
+
+    if ($logoUrl !== '') {
+        $payload['logo_url'] = $logoUrl;
+    }
 
     if ($customerName !== '') {
         $payload['customer_name'] = $customerName;
@@ -455,9 +466,11 @@ function ownpay_TransactionInformation(array $params = []): ?\WHMCS\Billing\Paym
 
         return $info;
     } catch (\Throwable $e) {
-        if ($params['test_mode'] ?? false) {
-            error_log('OwnPay TransactionInformation error: ' . $e->getMessage());
-        }
+        logTransaction(
+            $params['name'] ?? 'ownpay',
+            ['event' => 'transaction_info', 'error' => $e->getMessage()],
+            'TransactionInformation Error',
+        );
         return null;
     }
 }

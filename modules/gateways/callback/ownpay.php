@@ -46,7 +46,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'return'
 
     // Always redirect the customer somewhere - fall back to invoice list if returnUrl is missing.
     $systemUrl  = rtrim((string) ($gatewayParams['systemurl'] ?? ''), '/');
-    $redirectTo = $returnUrl !== '' ? $returnUrl : $systemUrl . '/clientarea.php?action=invoices';
+
+    // Validate return_url is on the same WHMCS origin to prevent open redirect.
+    $parsedSystem = parse_url($systemUrl);
+    $parsedReturn = ($returnUrl !== '') ? parse_url($returnUrl) : [];
+    $sameOrigin   = !empty($parsedReturn['host'])
+        && ($parsedReturn['host'] === ($parsedSystem['host'] ?? ''));
+    $redirectTo = ($returnUrl !== '' && $sameOrigin)
+        ? $returnUrl
+        : $systemUrl . '/clientarea.php?action=invoices';
 
     // --- Guard: must have a valid invoice ---
     if ($invoiceId <= 0) {
@@ -406,13 +414,17 @@ function ownpay_cb_apiGet(string $url, #[\SensitiveParameter] string $apiKey): a
  */
 function ownpay_cb_parseJson(string $body): array
 {
-    if ($body === '' || !json_validate($body)) {
+    if ($body === '') {
         return [];
     }
 
-    $decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+    $decoded = json_decode($body, true, 512);
 
-    return is_array($decoded) ? $decoded : [];
+    if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+        return [];
+    }
+
+    return $decoded;
 }
 
 /**
