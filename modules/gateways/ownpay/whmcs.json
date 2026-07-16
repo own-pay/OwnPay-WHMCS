@@ -1,0 +1,33 @@
+{
+  "schema": "1.0",
+  "type": "whmcs-gateways",
+  "name": "ownpay",
+  "license": "mit",
+  "category": "payments",
+  "description": {
+    "name": "OwnPay Payment Gateway",
+    "tagline": "Accept payments via OwnPay hosted checkout with 130+ gateways.",
+    "long": "OwnPay is an enterprise-grade payment gateway platform that supports 130+ payment methods worldwide. Customers are redirected to a secure hosted checkout page to complete payment, then returned to your WHMCS installation. Features include real-time webhook notifications, full and partial refunds, transaction details in the admin area, and comprehensive security with HMAC-SHA256 webhook verification.",
+    "features": [
+      "Hosted checkout with 130+ payment gateway support",
+      "Real-time payment confirmation via webhooks",
+      "Full and partial refund processing",
+      "HMAC-SHA256 webhook signature verification",
+      "Transaction information display in admin area",
+      "Test mode with detailed API logging"
+    ]
+  },
+  "logo": {
+    "filename": "logo.png"
+  },
+  "support": {
+    "homepage": "https://ownpay.org",
+    "docs_url": "https://ownpay.org/docs"
+  },
+  "authors": [
+    {
+      "name": "OwnPay",
+      "homepage": "https://ownpay.org"
+    }
+  ]
+}

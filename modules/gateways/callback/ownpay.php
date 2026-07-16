@@ -21,6 +21,12 @@ require_once __DIR__ . '/../../../init.php';
 require_once __DIR__ . '/../../../includes/gatewayfunctions.php';
 require_once __DIR__ . '/../../../includes/invoicefunctions.php';
 
+// Load language strings with fallback.
+$langFile = __DIR__ . '/../ownpay/lang/english.php';
+if (file_exists($langFile)) {
+    require_once $langFile;
+}
+
 $gatewayModuleName = basename(__FILE__, '.php'); // 'ownpay'
 $gatewayParams     = getGatewayVariables($gatewayModuleName);
 
@@ -188,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 header('Content-Type: application/json');
 
-$rawBody = (string) file_get_contents('php://input');
+$rawBody = (string) file_get_contents('php://input', false, null, 0, 1_048_576);
 
 if ($rawBody === '') {
     http_response_code(400);
@@ -256,10 +262,23 @@ if (!is_array($webhookData)) {
 $event           = (string) ($webhookData['event'] ?? '');
 $data            = $webhookData['data'] ?? $webhookData;
 
+// Filter: only process payment-related events. Non-payment events (e.g. refund.created)
+// must be acknowledged but NOT processed as invoice payments to avoid double-crediting.
+$isPaymentEvent = $event === '' || str_starts_with($event, 'payment.');
+if (!$isPaymentEvent) {
+    logTransaction($gatewayParams['name'], [
+        'event' => $event,
+        'note'  => 'Non-payment event acknowledged without processing',
+    ], 'Webhook - ' . ucfirst($event));
+    http_response_code(200);
+    echo json_encode(['status' => 'ok', 'message' => 'Event acknowledged']);
+    exit;
+}
+
 // API spec: TransactionResponse uses 'trx_id' (e.g. 'OP-481029304').
-// 'transaction_id' is a RefundResponse field pointing to a parent record integer,
-// and does NOT appear in payment webhook payloads.
-$transactionId   = (string) ($data['trx_id'] ?? $data['id'] ?? '');
+// The flat webhook format (WebhookDispatcher) uses 'transaction_id' instead.
+// 'id' is the database integer and is a last-resort fallback.
+$transactionId   = (string) ($data['trx_id'] ?? $data['transaction_id'] ?? $data['id'] ?? '');
 $gatewayTrxId    = (string) ($data['gateway_trx_id'] ?? '');
 $paymentAmount   = (string) ($data['amount'] ?? '');
 $paymentCurrency = (string) ($data['currency'] ?? '');
@@ -359,7 +378,7 @@ if ($isSuccess) {
         $uniqueTransactionId,
         (float) $paymentAmount,
         (float) $paymentFee,
-        $gatewayParams['paymentmethod'] ?? $gatewayModuleName,
+        $gatewayModuleName,
     );
 
     http_response_code(200);

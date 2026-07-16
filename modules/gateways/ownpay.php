@@ -15,11 +15,19 @@
  * @see https://developers.whmcs.com/payment-gateways/third-party-gateway/
  * @copyright Copyright (c) OwnPay
  * @license https://opensource.org/licenses/MIT MIT License
- * @version 1.0.1
+ * @version 1.1.0
  */
 
 if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
+}
+
+define('OWNPAY_MODULE_VERSION', '1.1.0');
+
+// Load language strings with fallback.
+$langFile = __DIR__ . '/ownpay/lang/english.php';
+if (file_exists($langFile)) {
+    require_once $langFile;
 }
 
 // ---------------------------------------------------------------------------
@@ -111,8 +119,8 @@ function ownpay_apiRequest(
         ],
     ]);
 
-    if ($method === 'POST') {
-        curl_setopt($ch, CURLOPT_POST, true);
+    if ($method !== 'GET') {
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
         if ($payload !== null) {
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload, JSON_THROW_ON_ERROR));
         }
@@ -217,7 +225,7 @@ function ownpay_link(array $params): string
     $moduleName = (string) ($params['paymentmethod'] ?? 'ownpay');
 
     if ($baseUrl === '' || $apiKey === '') {
-        return ownpay_errorHtml('OwnPay gateway is not configured. Please set the Base URL and API Key in the gateway settings.');
+        return ownpay_errorHtml($_LANG['ownpay']['error']['not_configured'] ?? 'OwnPay gateway is not configured. Please set the Base URL and API Key in the gateway settings.');
     }
 
 
@@ -247,7 +255,7 @@ function ownpay_link(array $params): string
         'metadata'     => [
             'whmcs_invoice_id' => (string) $invoiceId,
             'whmcs_client_id'  => (string) ($params['clientdetails']['id'] ?? ''),
-            'module_version'   => '1.0.0',
+            'module_version'   => OWNPAY_MODULE_VERSION,
             'whmcs_version'    => (string) ($params['whmcsVersion'] ?? 'unknown'),
         ],
     ];
@@ -279,7 +287,7 @@ function ownpay_link(array $params): string
                 'payload' => $payload,
             ], 'Connection Error');
         }
-        return ownpay_errorHtml('Unable to connect to OwnPay: ' . $resp['error']);
+        return ownpay_errorHtml(($_LANG['ownpay']['error']['connection_failed'] ?? 'Unable to connect to OwnPay: ') . $resp['error']);
     }
 
     $data = ownpay_parseJson($resp['body']);
@@ -288,7 +296,7 @@ function ownpay_link(array $params): string
         $errors   = ownpay_extractErrors($data);
         $errorMsg = $errors !== []
             ? implode(' ', $errors)
-            : 'Payment initiation failed. Please try again or contact support.';
+            : ($_LANG['ownpay']['error']['payment_failed'] ?? 'Payment initiation failed. Please try again or contact support.');
         if ($testMode) {
             logTransaction($params['name'], [
                 'event'     => 'initiate',
@@ -307,7 +315,7 @@ function ownpay_link(array $params): string
         if ($testMode) {
             logTransaction($params['name'], ['event' => 'initiate', 'response' => $data], 'Missing Checkout URL');
         }
-        return ownpay_errorHtml('OwnPay did not return a checkout URL. Please contact support.');
+        return ownpay_errorHtml($_LANG['ownpay']['error']['no_checkout_url'] ?? 'OwnPay did not return a checkout URL. Please contact support.');
     }
 
     if ($testMode) {
@@ -344,20 +352,26 @@ function ownpay_refund(array $params): array
     $transactionId = (string) ($params['transid'] ?? '');
     $refundAmount  = number_format((float) ($params['amount'] ?? 0), 2, '.', '');
     $currencyCode  = (string) ($params['currency'] ?? '');
+    $reason        = (string) ($params['reason'] ?? '');
 
     if ($baseUrl === '' || $apiKey === '') {
         return [
             'status'  => 'error',
-            'rawdata' => 'OwnPay gateway is not configured (missing Base URL or API Key).',
+            'rawdata' => $_LANG['ownpay']['error']['not_configured'] ?? 'OwnPay gateway is not configured (missing Base URL or API Key).',
             'transid' => '',
             'fees'    => 0,
         ];
     }
 
-    $resp = ownpay_apiRequest('POST', $baseUrl . '/api/v1/refunds', $apiKey, [
+    $refundPayload = [
         'trx_id' => $transactionId,
         'amount' => $refundAmount,
-    ]);
+    ];
+    if ($reason !== '') {
+        $refundPayload['reason'] = $reason;
+    }
+
+    $resp = ownpay_apiRequest('POST', $baseUrl . '/api/v1/refunds', $apiKey, $refundPayload);
 
     if ($resp['errno'] !== 0) {
         // Error-path log always fires regardless of test_mode.
@@ -443,14 +457,14 @@ function ownpay_TransactionInformation(array $params = []): ?\WHMCS\Billing\Paym
         if (!empty($txn['currency']))  $info->setCurrency((string) $txn['currency']);
         if (!empty($txn['status']))    $info->setStatus((string) $txn['status']);
         if (!empty($txn['fee']))       $info->setFee((float) $txn['fee']);
-        if (!empty($txn['gateway']))   $info->setType((string) $txn['gateway']);
+        $info->setType('payment');
         if (!empty($txn['created_at'])) {
             $info->setCreated(\WHMCS\Carbon::parse((string) $txn['created_at']));
         }
 
         foreach ([
-            'ownpay_gateway_trx_id' => 'gateway_trx_id',
-            'ownpay_payment_method' => 'method',
+            ($_LANG['ownpay']['transaction']['gateway_trx_id'] ?? 'OwnPay Transaction ID') => 'gateway_trx_id',
+            ($_LANG['ownpay']['transaction']['payment_method'] ?? 'Payment Method')         => 'method',
         ] as $label => $key) {
             if (!empty($txn[$key])) {
                 $info->setAdditionalDatum($label, (string) $txn[$key]);
@@ -459,7 +473,7 @@ function ownpay_TransactionInformation(array $params = []): ?\WHMCS\Billing\Paym
 
         if (!empty($txn['net_amount'])) {
             $info->setAdditionalDatum(
-                'ownpay_net_amount',
+                $_LANG['ownpay']['transaction']['net_amount'] ?? 'Net Amount',
                 $txn['net_amount'] . ' ' . ($txn['currency'] ?? ''),
             );
         }
